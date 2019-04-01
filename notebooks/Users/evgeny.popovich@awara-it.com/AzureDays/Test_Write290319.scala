@@ -35,7 +35,7 @@ val messages =
   .withColumn("moment", $"Json_Struct.moment")
   .withColumn("sn", $"Json_Struct.sn")
   .withColumn("val", $"Json_Struct.val")
-  .select("moment", "sn", "val")
+  .select("moment", "sn", "val").where("moment is not null")
 
 messages.printSchema
 
@@ -50,7 +50,7 @@ messages.writeStream.outputMode("append").format("console").option("truncate", f
 messages
   .writeStream
   .outputMode("append")
-  .option("checkpointLocation", "/tmp/checkpoints/to_deltatable0")
+  .option("checkpointLocation", "/tmp/checkpoints/to_deltatable1")
 //  .option("mergeSchema", "true")
   .format("delta")
   .table("events")
@@ -65,7 +65,8 @@ messages
 
 // COMMAND ----------
 
-// Запись из Delta таблицы в Data Lake
+// Потребитель I.
+// Запись из Delta таблицы в Data Lake 
 import org.apache.spark.sql.streaming.Trigger.ProcessingTime 
 
 val dl2Set = 
@@ -73,7 +74,8 @@ spark.readStream
   .table("events")
   .writeStream
   .format("parquet")
-  .option("checkpointLocation", "/mnt/checkpoints/to_dlake0")
+  //.option("ignoreDeletes","true")
+  .option("checkpointLocation", "/mnt/checkpoints/to_dlake1")
   .option("path", "/mnt/dl2/rawdata")
   .start()
 
@@ -90,16 +92,27 @@ spark.read.parquet("/mnt/dl2/rawdata").write.mode(SaveMode.Overwrite) saveAsTabl
 
 // COMMAND ----------
 
-val parquetFileDF = spark.read.parquet("/mnt/dl2/rawdata")
+// Потребитель II.
+// Запись из Delta таблицы в Data Lake в другую папку. Тестируем, что два потока чтения могут получать одни и теже данные из Delta Table == Работает!
+import org.apache.spark.sql.streaming.Trigger.ProcessingTime 
 
-// Parquet files can also be used to create a temporary view and then used in SQL statements
-//parquetFileDF.createOrReplaceTempView("part-00002-76267153-3102-4041-b3b5-ce5d6d5d422d-c000.snappy.parquet")
-//val namesDF = spark.sql("SELECT moment, sn, val FROM part-00002-76267153-3102-4041-b3b5-ce5d6d5d422d-c000.snappy.parquet") // WHERE age BETWEEN 13 AND 19
-//namesDF.map(attributes => "Moment: " + attributes(0)).show()
+val dl2Set = 
+spark.readStream
+  .table("events")
+  .writeStream
+  .format("parquet")
+  .option("checkpointLocation", "/mnt/checkpoints/to_dlakeII_1")
+  .option("path", "/mnt/dl2/rawdata_double")
+  .start()
+
+// COMMAND ----------
+
+val data = sqlContext.read.parquet("/mnt/dl2/rawdata_double")
+display(data)
 
 // COMMAND ----------
 
 //dbutils.fs.rm("/tmp/checkpoints/", true)
-//dbutils.fs.mkdirs("/tmp/checkpoints/")
-dbutils.fs.ls("/tmp/checkpoints")
+dbutils.fs.mkdirs("/mnt/dl2/rawdata_double")
+dbutils.fs.ls("/mnt/dl2/")
 //dbutils.fs.help()
