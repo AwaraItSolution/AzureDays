@@ -2,8 +2,10 @@
 // Инициализация EventHub 
 import org.apache.spark.eventhubs._
 
-// Build connection string with the above information
-val connectionString = ConnectionStringBuilder("Endpoint=sb://azuredayseventhub.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=ezcpA4x6xsEDduGu96SAqteaxfqXg/opqpAPo6qYcgM=")
+// МОЯ учетка
+val connectionString = ConnectionStringBuilder("Endpoint=sb://eventhubazuredays.servicebus.windows.net/;SharedAccessKeyName=sa-policy-eventhubdatabricks;SharedAccessKey=rPTVxfm6ZdL+Wv2yKZAeencRQfpbS+SNWHiESXNEvow=;EntityPath=eventhubdatabrics")
+// Димина учетка
+//val connectionString = ConnectionStringBuilder("Endpoint=sb://azuredayseventhub.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=ezcpA4x6xsEDduGu96SAqteaxfqXg/opqpAPo6qYcgM=")
   .setEventHubName("eventhubdatabrics")
   .build
 
@@ -48,7 +50,7 @@ messages.writeStream.outputMode("append").format("console").option("truncate", f
 messages
   .writeStream
   .outputMode("append")
-  .option("checkpointLocation", "/tmp/checkpoints/chp_dl2_to_deltatable4")
+  .option("checkpointLocation", "/tmp/checkpoints/to_deltatable0")
 //  .option("mergeSchema", "true")
   .format("delta")
   .table("events")
@@ -56,8 +58,8 @@ messages
 // COMMAND ----------
 
 // MAGIC %sql 
-// MAGIC select max(moment) from events --group by moment --order by moment desc , moment
-// MAGIC --select count(*) from events 
+// MAGIC --select max(moment) from events --group by moment --order by moment desc , moment
+// MAGIC select count(*) from events 
 // MAGIC -- Контроль записи в delta таблицу входных сообщений
 // MAGIC --truncate table events
 
@@ -71,9 +73,14 @@ spark.readStream
   .table("events")
   .writeStream
   .format("parquet")
-  .option("checkpointLocation", "/mnt/checkpoints/events_to_dlake_3")
+  .option("checkpointLocation", "/mnt/checkpoints/to_dlake0")
   .option("path", "/mnt/dl2/rawdata")
   .start()
+
+// COMMAND ----------
+
+val data = sqlContext.read.parquet("/mnt/dl2/rawdata")
+display(data)
 
 // COMMAND ----------
 
@@ -92,7 +99,7 @@ val parquetFileDF = spark.read.parquet("/mnt/dl2/rawdata")
 
 // COMMAND ----------
 
-//dbutils.fs.rm("/mnt/dl2/rawdata/", true)
-//dbutils.fs.mkdirs("/mnt/dl2/rawdata/")
-dbutils.fs.ls("/mnt/dl2/rawdata/")
+//dbutils.fs.rm("/tmp/checkpoints/", true)
+//dbutils.fs.mkdirs("/tmp/checkpoints/")
+dbutils.fs.ls("/tmp/checkpoints")
 //dbutils.fs.help()
